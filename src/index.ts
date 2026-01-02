@@ -3,6 +3,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { checkContrast } from './lib/apca.js';
 
 const server = new McpServer(
   {
@@ -56,23 +57,41 @@ server.registerTool(
     },
   },
   async (args) => {
-    // TODO: Implement APCA contrast checking (issue #2)
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: JSON.stringify(
-            {
-              status: 'not_implemented',
-              message: 'APCA contrast checking will be implemented in issue #2',
-              input: args,
-            },
-            null,
-            2
-          ),
-        },
-      ],
-    };
+    try {
+      const result = checkContrast(args.foreground, args.background, {
+        fontSize: args.fontSize,
+        fontWeight: args.fontWeight,
+        useCase: args.useCase,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify(
+              {
+                error: true,
+                message: `Failed to check contrast: ${message}`,
+                hint: 'Ensure colors are valid hex (#fff, #ffffff), rgb(255,255,255), hsl(0,0%,100%), or named colors (white, black)',
+              },
+              null,
+              2
+            ),
+          },
+        ],
+        isError: true,
+      };
+    }
   }
 );
 
